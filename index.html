@@ -309,14 +309,36 @@ async function cargarDatos() {
         `);
       }
 
-      function actualizarEstado(idEvento) {
-        const nuevoEstado = document.getElementById('estado-' + idEvento).value;
-        
-        google.script.run.withSuccessHandler((msg) => {
-          console.log(msg);
-          cargarDatos(); // Refrescamos para mostrar el color actualizado
-        }).cambiarEstadoEvento(idEvento, nuevoEstado);
-      }
+      async function actualizarEstado(idEvento) {
+  const selector = document.getElementById('estado-' + idEvento);
+  const nuevoEstado = selector.value;
+ 
+  // Bloqueamos el selector momentáneamente para evitar doble clic
+  selector.disabled = true;
+
+  try {
+    const respuesta = await fetch(URL_WEB_APP, {
+      method: 'POST',
+      body: JSON.stringify({
+        accion: 'cambiarEstadoEvento',
+        idEvento: idEvento,
+        nuevoEstado: nuevoEstado
+      })
+    });
+
+    const res = await respuesta.json();
+    console.log("Respuesta de cambio de estado:", res);
+
+    // Refrescamos la agenda para que los colores se actualicen
+    await cargarDatos();
+
+  } catch (error) {
+    console.error("Error al actualizar estado:", error);
+    alert("No se pudo actualizar el estado. Verifica tu conexión.");
+  } finally {
+    selector.disabled = false;
+  }
+}
 
  async function abrirGrabador(id, titulo) {
   idEventoActivo = id;
@@ -1210,6 +1232,7 @@ async function descargarPDFAsistencia(idEvento, tituloEvento) {
     </script>
   </body>
 </html>
+
 
 
 
