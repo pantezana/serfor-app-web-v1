@@ -1192,77 +1192,93 @@ function finalizarActaDirecto() {
         // Enviamos 'null' en el archivo porque no hay audio nuevo, pero 'true' en esFinal
 }
 
+
 async function descargarPDFAsistencia(idEvento, tituloEvento) {
-  // Feedback visual
+  // Feedback visual (capturamos el botón desde el evento)
   const btn = event.target;
   const originalText = btn.innerText;
   btn.innerText = "⏳ Generando...";
-  
-  google.script.run.withSuccessHandler(res => {
+  btn.disabled = true;
+
+  try {
+    // LLAMADA COMPATIBLE CON GITHUB
+    const respuesta = await fetch(URL_WEB_APP, {
+      method: 'POST',
+      body: JSON.stringify({
+        accion: 'obtenerDatosAsistenciaPDF',
+        idEvento: idEvento
+      })
+    });
+
+    const res = await respuesta.json();
     btn.innerText = originalText;
-    
-    if (!res.success || res.lista.length === 0) {
+    btn.disabled = false;
+
+    if (!res.success || !res.lista || res.lista.length === 0) {
       alert("No se encontraron asistentes registrados para este evento.");
       return;
     }
 
+    // --- INICIO LÓGICA JSPDF (Tu diseño original) ---
     const { jsPDF } = window.jspdf;
-    const doc = new jsPDF('l', 'mm', 'a4'); // 'l' para Horizontal (Landscape)
-    
-    // --- Encabezado ---
+    const doc = new jsPDF('l', 'mm', 'a4');
+
     doc.setFont("helvetica", "bold");
     doc.setFontSize(16);
     doc.text("REPORTE DE ASISTENCIA AL EVENTO", 148.5, 15, { align: "center" });
-    
+
     doc.setFontSize(12);
     doc.text(`Evento: ${tituloEvento}`, 20, 25);
     doc.text(`ID: ${idEvento}`, 20, 32);
-    
+
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
     doc.text("Fecha de reporte: " + new Date().toLocaleString(), 20, 39);
     doc.line(20, 42, 277, 42);
 
-    // --- Tabla Manual (Encabezados) ---
     doc.setFont("helvetica", "bold");
     let y = 50;
     const xDni = 20, xNombre = 45, xInst = 110, xArea = 160, xMod = 210, xFecha = 235;
-    
+   
     doc.text("DNI", xDni, y);
     doc.text("Nombres y Apellidos", xNombre, y);
     doc.text("Institución", xInst, y);
     doc.text("Área / Cargo", xArea, y);
     doc.text("Mod.", xMod, y);
     doc.text("Fecha Registro", xFecha, y);
-    
+   
     y += 7;
     doc.line(20, y-4, 277, y-4);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
 
-    // --- Listado de Asistentes ---
     res.lista.forEach(asist => {
-      // Control de salto de página
       if (y > 185) {
         doc.addPage('l', 'mm', 'a4');
         y = 20;
       }
-      
-      doc.text(asist.dni.toString(), xDni, y);
-      doc.text(asist.nombres.substring(0, 35), xNombre, y);
-      doc.text(asist.institucion.substring(0, 25), xInst, y);
-      doc.text(`${asist.area.substring(0, 25)} / ${asist.cargo.substring(0, 25)}`, xArea, y);
+     
+      doc.text(asist.dni ? asist.dni.toString() : "-", xDni, y);
+      doc.text(asist.nombres ? asist.nombres.substring(0, 35) : "-", xNombre, y);
+      doc.text(asist.institucion ? asist.institucion.substring(0, 25) : "-", xInst, y);
+      doc.text(`${asist.area || ""} / ${asist.cargo || ""}`.substring(0, 50), xArea, y);
       doc.text(asist.modalidad || "-", xMod, y);
-      doc.text(asist.fecha, xFecha, y);
-      
+      doc.text(asist.fecha || "-", xFecha, y);
+     
       y += 8;
       doc.setDrawColor(230);
-      doc.line(20, y-4, 277, y-4); // Línea tenue entre filas
+      doc.line(20, y-4, 277, y-4);
       doc.setDrawColor(0);
     });
 
     doc.save(`Asistencia_${idEvento}.pdf`);
-  }).obtenerDatosAsistenciaPDF(idEvento);
+
+  } catch (error) {
+    console.error("Error al generar PDF:", error);
+    alert("Error de conexión al obtener los datos de asistencia.");
+    btn.innerText = originalText;
+    btn.disabled = false;
+  }
 }
 
   function obtenerUrlAsistencia(id) {
@@ -1273,6 +1289,7 @@ async function descargarPDFAsistencia(idEvento, tituloEvento) {
     </script>
   </body>
 </html>
+
 
 
 
