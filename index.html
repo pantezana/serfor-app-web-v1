@@ -1062,22 +1062,49 @@ function obtenerUrlAsistencia(id) {
 }
 
 // NUEVA FUNCIÓN: Para copiar al portapapeles directamente
+
+
 function copiarEnlaceAsistencia(id) {
-  const urlAsistencia = obtenerUrlAsistencia(id);
-  
-  navigator.clipboard.writeText(urlAsistencia).then(() => {
-    alert("✅ Enlace de asistencia copiado. Ya puedes pegarlo en WhatsApp.");
-  }).catch(err => {
-    console.error('Error al copiar: ', err);
-    // Alternativa por si el navegador bloquea el clipboard
-    const textArea = document.createElement("textarea");
-    textArea.value = urlAsistencia;
-    document.body.appendChild(textArea);
-    textArea.select();
-    document.execCommand('copy');
-    document.body.removeChild(textArea);
-    alert("✅ Enlace copiado (vía alternativa).");
-  });
+  // 1. Construimos la URL usando la constante que definimos para GitHub
+  // Esto reemplaza la antigua lógica de 'obtenerUrlAsistencia' que fallaba
+  const urlAsistencia = URL_WEB_APP + "?id=" + id;
+ 
+  // 2. Intentamos copiar al portapapeles con la API moderna
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(urlAsistencia).then(() => {
+      mostrarNotificacionCopiado(); // Opcional: una alerta más elegante
+    }).catch(err => {
+      console.error('Error al copiar: ', err);
+      fallbackCopiarEnlace(urlAsistencia);
+    });
+  } else {
+    // 3. Si el navegador es antiguo o bloquea la API, usamos el método tradicional
+    fallbackCopiarEnlace(urlAsistencia);
+  }
+}
+
+/ Función auxiliar para una mejor experiencia de usuario
+function fallbackCopiarEnlace(texto) {
+  const textArea = document.createElement("textarea");
+  textArea.value = texto;
+  // Aseguramos que no se vea en pantalla mientras se procesa
+  textArea.style.position = "fixed";
+  textArea.style.left = "-9999px";
+  textArea.style.top = "0";
+  document.body.appendChild(textArea);
+  textArea.focus();
+  textArea.select();
+ 
+  try {
+    const exitoso = document.execCommand('copy');
+    if (exitoso) {
+      alert("✅ Enlace de asistencia copiado al portapapeles.");
+    }
+  } catch (err) {
+    console.error('Fallback falló:', err);
+    alert("❌ No se pudo copiar. URL: " + texto);
+  }
+  document.body.removeChild(textArea);
 }
 
 function abrirModalCrear() {
@@ -1246,6 +1273,7 @@ async function descargarPDFAsistencia(idEvento, tituloEvento) {
     </script>
   </body>
 </html>
+
 
 
 
