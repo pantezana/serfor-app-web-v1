@@ -126,7 +126,7 @@
       let localStream; // Nueva variable global para "sujetar" el micrófono
       let intervaloAutoGuardado; // El "reloj" que contará los 15 minutos
       let listaProyectosGlobal = [];
-      const TIEMPO_FRAGMENTO = 7 * 60 * 1000; // 7 minutos convertidos a milisegundos
+      const TIEMPO_FRAGMENTO = 5 * 60 * 1000; // 5 minutos convertidos a milisegundos
       let segundosPendientesPausa = null; // Para saber si el stop actual es una pausa
       // 1. PEGA ESTA URL AL PRINCIPIO DE TU <SCRIPT>
       const URL_WEB_APP = "https://script.google.com/macros/s/AKfycbxTnY4nO1L0SL-Vh61QRGatuOOO9L7y5v16OL6I5KydGeIA241dUchEolc0JeVBUCmLxg/exec";
@@ -1358,6 +1358,7 @@ async function descargarPDFAsistencia(idEvento, tituloEvento) {
     </script>
   </body>
 </html>
+
 
 
 
