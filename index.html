@@ -1072,7 +1072,8 @@ function copiarEnlaceAsistencia(id) {
   // 2. Intentamos copiar al portapapeles con la API moderna
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(urlAsistencia).then(() => {
-      mostrarNotificacionCopiado(); // Opcional: una alerta más elegante
+       // CAMBIO AQUÍ: Usamos alert en lugar de la función inexistente
+      alert("✅ Enlace de asistencia copiado. Ya puedes pegarlo en WhatsApp.");
     }).catch(err => {
       console.error('Error al copiar: ', err);
       fallbackCopiarEnlace(urlAsistencia);
@@ -1318,6 +1319,7 @@ async function descargarPDFAsistencia(idEvento, tituloEvento) {
     </script>
   </body>
 </html>
+
 
 
 
