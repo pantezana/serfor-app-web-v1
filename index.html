@@ -318,35 +318,37 @@ async function cargarDatos() {
         }).cambiarEstadoEvento(idEvento, nuevoEstado);
       }
 
-    function abrirGrabador(id, titulo) {
-      idEventoActivo = id;
-      
-      // Limpieza previa
-      document.getElementById('texto-transcripcion').value = "Cargando...";
-      document.getElementById('texto-resumen').value = "";
-      document.getElementById('modal-titulo').innerText = "Acta: " + titulo;
-      document.getElementById('modal-acta').style.display = 'block';
+ async function abrirGrabador(id, titulo) {
+  idEventoActivo = id;
+  
+  // Limpieza previa
+  document.getElementById('texto-transcripcion').value = "Cargando datos desde Google...";
+  document.getElementById('texto-resumen').value = "";
+  document.getElementById('modal-titulo').innerText = "Acta: " + titulo;
+  document.getElementById('modal-acta').style.display = 'block';
 
-      google.script.run.withSuccessHandler(data => {
-        document.getElementById('texto-transcripcion').value = data.transcripcion || "";
-        document.getElementById('texto-resumen').value = data.resumen || "";
+  // --- CAMBIO CLAVE: Usamos fetch en lugar de google.script.run ---
+  try {
+    const urlFinal = URL_WEB_APP + "?accion=obtenerDatosActa&id=" + id;
+    const respuesta = await fetch(urlFinal);
+    const data = await respuesta.json();
 
-      // --- INICIO DE LA MEJORA DE MEMORIA ---
-        // 1. Cargamos los segundos que vienen de la Columna I (índice 8)
-        // Asegúrate de que tu función en codigo.gs retorne 'segundosAcumulados'
-        segundos = data.segundosAcumulados || 0; 
-        
-        // 2. Actualizamos el reloj visual (00:00) con el tiempo recuperado
-        document.getElementById('cronometro').innerText = formatearTiempo(segundos);
-        
-        // --- FIN DE LA MEJORA ---  
-        
-        // Evaluamos el estado para aplicar el bloqueo correspondiente
-        // data.estado viene de la columna F de ACTAS
-        bloquearEdicion(data.estado); 
-        
-      }).obtenerDatosActa(id);
-    }
+    // Rellenamos los campos con lo que devolvió Google
+    document.getElementById('texto-transcripcion').value = data.transcripcion || "";
+    document.getElementById('texto-resumen').value = data.resumen || "";
+
+    // Recuperar el tiempo del cronómetro
+    segundos = data.segundosAcumulados || 0; 
+    document.getElementById('cronometro').innerText = formatearTiempo(segundos);
+    
+    // Aplicar bloqueos si el acta está cerrada
+    bloquearEdicion(data.estado); 
+
+  } catch (error) {
+    console.error("Error al obtener datos del acta:", error);
+    document.getElementById('texto-transcripcion').value = "Error al conectar con el servidor.";
+  }
+}
       
     function cerrarModalActa() {
       if(estaGrabando) {
@@ -1155,6 +1157,7 @@ async function descargarPDFAsistencia(idEvento, tituloEvento) {
     </script>
   </body>
 </html>
+
 
 
 
