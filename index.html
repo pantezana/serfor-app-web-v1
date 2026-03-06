@@ -1107,15 +1107,27 @@ function fallbackCopiarEnlace(texto) {
   document.body.removeChild(textArea);
 }
 
-function abrirModalCrear() {
-  // 1. Mostramos el modal
+async function abrirModalCrear() {
+  // 1. Mostramos el modal de inmediato
   document.getElementById('modal-crear').style.display = 'block';
   const select = document.getElementById('nuevo-proyecto');
-  select.innerHTML = '<option>Cargando proyectos...</option>';
+  select.innerHTML = '<option>⏳ Cargando proyectos...</option>';
 
-  // 2. Pedimos la lista fresca de proyectos al servidor
-  google.script.run.withSuccessHandler(function(proyectos) {
+  try {
+    // 2. Pedimos la lista de proyectos mediante fetch
+    const respuesta = await fetch(URL_WEB_APP, {
+      method: 'POST',
+      body: JSON.stringify({
+        accion: 'obtenerListaProyectos'
+      })
+    });
+
+    const proyectos = await respuesta.json();
+   
+    // Guardamos en la variable global por si la necesitas luego
     listaProyectosGlobal = proyectos;
+
+    // 3. Llenamos el select con los datos recibidos
     select.innerHTML = '<option value="">-- Seleccione Proyecto --</option>';
     proyectos.forEach(p => {
       let opt = document.createElement('option');
@@ -1123,49 +1135,66 @@ function abrirModalCrear() {
       opt.innerText = p;
       select.appendChild(opt);
     });
-  }).obtenerListaProyectos();
+
+  } catch (error) {
+    console.error("Error al cargar proyectos:", error);
+    select.innerHTML = '<option value="">❌ Error al cargar</option>';
+    alert("No se pudo conectar con Google para obtener la lista de proyectos.");
+  }
 }
 
 function cerrarModalCrear() {
   document.getElementById('modal-crear').style.display = 'none';
 }
 
-function guardarEventoEmergencia() {
+async function guardarEventoEmergencia() {
   const datos = {
     titulo: document.getElementById('nuevo-titulo').value,
     proyecto: document.getElementById('nuevo-proyecto').value,
     fecha: document.getElementById('nueva-fecha').value,
     hora: document.getElementById('nueva-hora').value,
-    horaFin: document.getElementById('nueva-hora-fin').value // Capturamos la hora de fin
+    horaFin: document.getElementById('nueva-hora-fin').value
   };
 
-  // Validación de campos vacíos
-  if(!datos.titulo || !datos.proyecto || !datos.fecha || !datos.hora || !datos.horaFin) {
+  // 1. Validación de campos vacíos
+  if (!datos.titulo || !datos.proyecto || !datos.fecha || !datos.hora || !datos.horaFin) {
     alert("⚠️ Atención: Todos los campos son obligatorios para crear el evento.");
     return;
   }
 
-  // Feedback visual de procesamiento
+  // 2. Feedback visual de procesamiento
   const grid = document.getElementById('calendar-grid');
   const backupGrid = grid.innerHTML;
-  grid.innerHTML = '<p class="msg">🚀 Procesando con Google Calendar... Por favor espera.</p>';
-  
+  grid.innerHTML = '<div style="text-align:center; padding:20px;">🚀 Procesando con Google Calendar... Por favor espera.</div>';
+
   cerrarModalCrear();
 
-  google.script.run.withSuccessHandler(res => {
-    if(res.status === "success") {
+  try {
+    // 3. Envío de datos mediante fetch al doPost de Google
+    const respuesta = await fetch(URL_WEB_APP, {
+      method: 'POST',
+      body: JSON.stringify({
+        accion: 'crearEventoEmergencia',
+        datos: datos // Enviamos el objeto completo de datos
+      })
+    });
+
+    const res = await respuesta.json();
+
+    if (res.status === "success") {
       alert("✅ ¡Excelente! El evento ha sido creado en Calendar y registrado en la base de datos.");
-      cargarDatos(); // Sincroniza y refresca la vista
+      // Sincroniza y refresca la vista llamando a tu función de carga
+      if (typeof cargarDatos === 'function') await cargarDatos();
     } else {
-      // Manejo de errores amigable según la respuesta del servidor
       alert("❌ No se pudo crear el evento.\n\nMotivo: " + res.message);
-      grid.innerHTML = backupGrid; // Restauramos la vista anterior
+      grid.innerHTML = backupGrid; // Restauramos la vista si falla el servidor
     }
-  }).withFailureHandler(err => {
-      // Error de conexión o crítico de Google Script
-      alert("🛑 Error de conexión: No se pudo contactar con el servidor. Revisa tu internet.");
-      grid.innerHTML = backupGrid;
-  }).crearEventoEmergencia(datos);
+
+  } catch (error) {
+    console.error("Error crítico al crear evento:", error);
+    alert("🛑 Error de conexión: No se pudo contactar con el servidor. Revisa tu internet.");
+    grid.innerHTML = backupGrid;
+  }
 }
 
 // Esta es la pieza que falta para convertir números en formato de reloj
@@ -1289,6 +1318,7 @@ async function descargarPDFAsistencia(idEvento, tituloEvento) {
     </script>
   </body>
 </html>
+
 
 
 
