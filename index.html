@@ -931,32 +931,45 @@ reader.onloadend = async () => {
   }
 }
 
-function generarResumenIA() {
+async function generarResumenIA() {
   const btn = document.getElementById('btn-generar-resumen');
   const estadoTexto = document.getElementById('estado-texto');
-  
+ 
   btn.innerText = "⌛ Procesando con Gemini...";
   btn.disabled = true;
   estadoTexto.innerText = "IA: Analizando transcripción y redactando resumen...";
 
-  google.script.run.withSuccessHandler(res => {
+  try {
+    const respuesta = await fetch(URL_WEB_APP, {
+      method: 'POST',
+      body: JSON.stringify({
+        accion: 'generarResumenConGemini',
+        idEvento: idEventoActivo
+      })
+    });
+
+    const res = await respuesta.json();
+
     btn.innerText = "✨ Generar Resumen con Inteligencia Artificial";
     btn.disabled = false;
-    
+
     if (res.status === "success") {
       document.getElementById('texto-resumen').value = res.resumen;
       estadoTexto.innerText = "✅ Resumen generado y guardado";
-      
-      // Sincronizamos todo el modal y actualizamos estado a "Resumida" en la UI
-      guardarCambiosManuales(false); 
-      
-      // Opcional: Cambiar a la pestaña de resumen si no está en ella
+     
+      // Sincronizamos (Asegúrate que guardarCambiosManuales también sea async)
+      guardarCambiosManuales(false);
       cambiarTab('resumen');
     } else {
       estadoTexto.innerText = "❌ Error en resumen";
       alert("Error: " + res.message);
     }
-  }).generarResumenConGemini(idEventoActivo);
+  } catch (error) {
+    console.error("Error en resumen IA:", error);
+    btn.innerText = "✨ Reintentar Generar Resumen";
+    btn.disabled = false;
+    estadoTexto.innerText = "❌ Error de conexión";
+  }
 }
 
 
@@ -1197,6 +1210,7 @@ async function descargarPDFAsistencia(idEvento, tituloEvento) {
     </script>
   </body>
 </html>
+
 
 
 
