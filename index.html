@@ -150,37 +150,40 @@ async function llamarBackend(accion, datos = {}) {
   // Si necesitas leer datos (como la lista de eventos), usaremos un túnel proxy o CORS habilitado.
 }
 
-     
+    
+      // 1. PEGA ESTA URL AL PRINCIPIO DE TU <SCRIPT>
+const URL_WEB_APP = "https://script.google.com/macros/s/AKfycbzEkj8xQTLkyoGhP7LxATzrgW5kcHAAekt5-wKZsMu9WnJ1qDNqaUCyXpbTK40ImLs6AQ/exec";
 
-      function cargarDatos() {
-        // 1. Buscamos el botón de sincronizar en tu pantalla
-        const btn = document.querySelector('.btn-refresh');
+async function cargarDatos() {
+  const btn = document.querySelector('.btn-refresh');
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '⏳ Sincronizando...';
+  }
+  document.getElementById('calendar-grid').innerHTML = '<p class="msg">Consultando base de datos segura...</p>';
 
-        // 2. Si el botón existe, lo desactivamos y le ponemos un relojito
-        if (btn) {
-          btn.disabled = true;
-          btn.innerHTML = '⏳ Sincronizando...';
-        }
+  // CAMBIO CLAVE: Usamos fetch en lugar de google.script.run
+  try {
+    const respuesta = await fetch(URL_WEB_APP, {
+      method: 'POST',
+      body: JSON.stringify({ accion: 'obtenerEventos' })
+    });
+    
+    const eventos = await respuesta.json();
 
-        // 3. Mostramos el mensaje de carga en el grid como ya lo hacías
-        document.getElementById('calendar-grid').innerHTML = '<p class="msg">Consultando base de datos...</p>';
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '🔄 Sincronizar';
+    }
 
-        // 4. Llamamos al servidor
-        // Hemos modificado el "SuccessHandler" para que, antes de dibujar los eventos,
-        // reactive el botón.
-        google.script.run.withSuccessHandler(function(eventos) {
-          
-          // REACTIVACIÓN: Cuando Google responde, el botón vuelve a la vida
-          if (btn) {
-            btn.disabled = false;
-            btn.innerHTML = '🔄 Sincronizar';
-          }
+    // Usamos tu función de siempre para dibujar los cuadritos
+    procesarEventos(eventos);
 
-          // Llamamos a tu función original procesarEventos con los datos recibidos
-          procesarEventos(eventos);
-
-        }).obtenerEventos();
-      }
+  } catch (error) {
+    console.error("Error conectando con Google:", error);
+    document.getElementById('calendar-grid').innerHTML = '<p class="msg" style="color:red;">Error de conexión con el servidor.</p>';
+  }
+}
       
       function procesarEventos(eventos) {
         eventosCargados = eventos;
@@ -1152,4 +1155,5 @@ async function descargarPDFAsistencia(idEvento, tituloEvento) {
     </script>
   </body>
 </html>
+
 
