@@ -744,59 +744,89 @@ function gestionarGrabacion(accion) {
 
         const reader = new FileReader();
         reader.readAsDataURL(audioBlob);
-        reader.onloadend = () => {
-          const base64 = reader.result.split(',')[1];
+reader.onloadend = async () => {
+  const base64 = reader.result.split(',')[1];
+  const estadoTexto = document.getElementById('estado-texto');
+  
+  // Capturamos el estado de 'finalizandoGrabacion' justo ahora
+  const esElFinal = finalizandoGrabacion;
+
+  try {
+    // 1. PRIMERA LLAMADA: Subir el audio a Drive
+    console.log("📤 Subiendo fragmento de audio a Drive...");
+    const respuestaDrive = await fetch(URL_WEB_APP, {
+      method: 'POST',
+      body: JSON.stringify({
+        accion: 'subirAudio',
+        base64: base64,
+        idEvento: idEventoActivo
+      })
+    });
+    const resDrive = await respuestaDrive.json();
+
+    if (resDrive.success) {
+      console.log("🚀 Audio en Drive: " + resDrive.fileId + ". Enviando a Gemini...");
+      
+      // Actualizamos UI si es el final
+      if (esElFinal) {
+        estadoTexto.innerText = "⌛ Generando transcripción final... Por favor espera.";
+        estadoTexto.style.color = "blue";
+      } else if (!estaGrabando) {
+        estadoTexto.innerText = "⏸️ Pausado - Procesando en la nube...";
+        estadoTexto.style.color = "orange";
+      }
+
+      // 2. SEGUNDA LLAMADA: Procesar con la IA (Gemini)
+      const respuestaIA = await fetch(URL_WEB_APP, {
+        method: 'POST',
+        body: JSON.stringify({
+          accion: 'procesarTranscripcion',
+          fileId: resDrive.fileId,
+          idEvento: idEventoActivo,
+          segundos: segundosAEnviar,
+          esFinal: esElFinal
+        })
+      });
+      const resIA = await respuestaIA.json();
+
+      console.log("Sincronización completa. Segundos en BD:", resIA.segundosGuardados);
+
+      if (resIA.status === "success") {
+        // Actualizamos el cuadro de texto con la transcripción que devolvió la IA
+        document.getElementById('texto-transcripcion').value = resIA.transcripcion;
+        
+        if (esElFinal) {
+          estadoTexto.innerText = "✅ Transcripción Finalizada";
+          estadoTexto.style.color = "blue";
+          alert("¡Listo! El acta ha sido actualizada con el último fragmento.");
           
-          google.script.run.withSuccessHandler(resDrive => {
-            if (resDrive.success) {
-              console.log("🚀 Enviando fragmento final a Gemini: " + resDrive.fileId);
-              
-              // --- NUEVA LÓGICA CON MANEJO DE RESPUESTA ---
-              google.script.run
-                .withSuccessHandler(resIA => {
-                  console.log("Sincronización completa. Segundos en BD:", resIA.segundosGuardados);
-                  if (resIA.status === "success") {
-                    // 1. Ponemos el texto final en el cuadro de la pantalla
-                    document.getElementById('texto-transcripcion').value = resIA.transcripcion;
-                    
-                    if (finalizandoGrabacion) {
-                      estadoTexto.innerText = "✅ Transcripción Finalizada";
-                      estadoTexto.style.color = "blue";
-                      alert("¡Listo! El acta ha sido actualizada con el último fragmento.");
-                      
-                      // 2. RECARGA: Llamamos a cargarDatos() para refrescar la agenda si es necesario
-                      if (typeof cargarDatos === 'function') cargarDatos();
-                    }
-                  } else {
-                    console.error("Error IA:", resIA.message);
-                  }
-                })
-                .procesarAudioIndividual(resDrive.fileId, idEventoActivo, segundosAEnviar, esElFinal);
-              // --------------------------------------------
+          // Refrescamos la agenda para ver los cambios
+          if (typeof cargarDatos === 'function') cargarDatos();
+        } else if (!estaGrabando) {
+          estadoTexto.innerText = "⏸️ Pausado - Fragmento enviado a proceso";
+          estadoTexto.style.color = "orange";
+        }
+      } else {
+        console.error("Error IA:", resIA.message);
+        alert("La IA falló: " + resIA.message);
+      }
 
-              if (finalizandoGrabacion) {
-                estadoTexto.innerText = "⌛ Generando transcripción final... Por favor espera.";
-                estadoTexto.style.color = "blue";
-              } 
-              else if (!estaGrabando) { 
-                // Como quitamos la línea de "stop tracks", ahora el sistema detecta 
-                // que esto es una PAUSA real.
-                estadoTexto.innerText = "⏸️ Pausado - Fragmento enviado a proceso";
-                estadoTexto.style.color = "orange";
-              }
-
-            } else {
-              alert("Error al subir fragmento: " + resDrive.error);
-            }
-          }).subirAudioADrive(base64, idEventoActivo);
-        };
+    } else {
+      alert("Error al subir fragmento a Drive: " + resDrive.error);
+    }
+  } catch (error) {
+    console.error("Error en el flujo de comunicación:", error);
+    estadoTexto.innerText = "❌ Error de conexión";
+    alert("No se pudo conectar con Google para procesar el audio.");
+  }
+};
       };
 
       mediaRecorder.start(1000); 
       
-      if (recognition) {
-        try { recognition.start(); } catch(e) { console.warn("Recognition ya iniciado"); }
-      }
+      //if (recognition) {
+      //  try { recognition.start(); } catch(e) { console.warn("Recognition ya iniciado"); }
+      //}
       
       estaGrabando = true;
       iniciarCronometro();
@@ -929,28 +959,38 @@ function generarResumenIA() {
   }).generarResumenConGemini(idEventoActivo);
 }
 
-function guardarCambiosManuales(notificar = true) {
-  // 1. Solo capturamos el resumen (que es lo que el usuario suele escribir a mano)
+
+async function guardarCambiosManuales(notificar = true) {
   const resumen = document.getElementById('texto-resumen').value;
-  
-  // 2. IMPORTANTE: No enviamos 'trans'. 
-  // En su lugar, le diremos al servidor que NO toque la columna de transcripción.
-  
   const tempEstado = document.getElementById('estado-texto').innerText;
   document.getElementById('estado-texto').innerText = "💾 Sincronizando Resumen...";
 
-  google.script.run
-    .withSuccessHandler((res) => {
-      document.getElementById('estado-texto').innerText = "✅ Resumen guardado";
-      if(notificar) alert("Cambios guardados correctamente.");
-      
-      setTimeout(() => {
-        document.getElementById('estado-texto').innerText = tempEstado;
-      }, 3000);
-    })
-    // Enviamos "null" o vacío en el espacio de la transcripción 
-    // para que la función del servidor sepa que no debe borrar lo que hizo la IA
-    .guardarCambiosEnHoja(idEventoActivo, null, resumen, "Manual");
+  try {
+    // Usamos fetch hacia el doPost de Google
+    const respuesta = await fetch(URL_WEB_APP, {
+      method: 'POST',
+      body: JSON.stringify({
+        accion: 'guardarCambiosEnHoja',
+        idEvento: idEventoActivo,
+        trans: null, // No tocamos la transcripción
+        resumen: resumen,
+        tipo: "Manual"
+      })
+    });
+
+    const res = await respuesta.json();
+    
+    document.getElementById('estado-texto').innerText = "✅ Resumen guardado";
+    if(notificar) alert("Cambios guardados correctamente.");
+    
+    setTimeout(() => {
+      document.getElementById('estado-texto').innerText = tempEstado;
+    }, 3000);
+
+  } catch (error) {
+    console.error("Error al guardar:", error);
+    document.getElementById('estado-texto').innerText = "❌ Error al guardar";
+  }
 }
 
 
@@ -1157,6 +1197,7 @@ async function descargarPDFAsistencia(idEvento, tituloEvento) {
     </script>
   </body>
 </html>
+
 
 
 
