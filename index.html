@@ -152,7 +152,7 @@ async function llamarBackend(accion, datos = {}) {
 
     
       // 1. PEGA ESTA URL AL PRINCIPIO DE TU <SCRIPT>
-const URL_WEB_APP = "https://script.google.com/macros/s/AKfycbzEkj8xQTLkyoGhP7LxATzrgW5kcHAAekt5-wKZsMu9WnJ1qDNqaUCyXpbTK40ImLs6AQ/exec";
+const URL_WEB_APP = "https://script.google.com/macros/s/AKfycbx9nZOOhlxuRL-YVac1F-xDmgqABdHDydnmwsLFNYZJAqyB3PBUgQB8esWSnePyNMNreg/exec";
 
 async function cargarDatos() {
   const btn = document.querySelector('.btn-refresh');
@@ -160,13 +160,15 @@ async function cargarDatos() {
     btn.disabled = true;
     btn.innerHTML = '⏳ Sincronizando...';
   }
-  document.getElementById('calendar-grid').innerHTML = '<p class="msg">Consultando base de datos segura...</p>';
+  document.getElementById('calendar-grid').innerHTML = '<p class="msg">Conectando con SERFOR...</p>';
 
-  // CAMBIO CLAVE: Usamos fetch en lugar de google.script.run
   try {
-    const respuesta = await fetch(URL_WEB_APP, {
-      method: 'POST',
-      body: JSON.stringify({ accion: 'obtenerEventos' })
+    // 1. Usamos URLSearchParams para saltar el CORS
+    const urlConParametro = URL_WEB_APP + "?accion=obtenerEventos";
+
+    // 2. Hacemos la petición
+    const respuesta = await fetch(urlConParametro, {
+      method: 'POST' // Google prefiere POST para estas llamadas
     });
     
     const eventos = await respuesta.json();
@@ -176,12 +178,13 @@ async function cargarDatos() {
       btn.innerHTML = '🔄 Sincronizar';
     }
 
-    // Usamos tu función de siempre para dibujar los cuadritos
+    // Dibujamos los eventos
     procesarEventos(eventos);
 
   } catch (error) {
-    console.error("Error conectando con Google:", error);
-    document.getElementById('calendar-grid').innerHTML = '<p class="msg" style="color:red;">Error de conexión con el servidor.</p>';
+    console.error("Error CORS o Conexión:", error);
+    document.getElementById('calendar-grid').innerHTML = 
+      '<p class="msg" style="color:red;">Error de acceso. Verifique que el Script esté publicado para "Cualquiera".</p>';
   }
 }
       
@@ -1155,6 +1158,7 @@ async function descargarPDFAsistencia(idEvento, tituloEvento) {
     </script>
   </body>
 </html>
+
 
 
 
