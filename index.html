@@ -1222,6 +1222,45 @@ function finalizarActaDirecto() {
         // Enviamos 'null' en el archivo porque no hay audio nuevo, pero 'true' en esFinal
 }
 
+async function finalizarActaDirecto() {
+  const estadoTexto = document.getElementById('estado-texto');
+  estadoTexto.innerText = "⌛ Finalizando acta y cerrando sesión...";
+  estadoTexto.style.color = "blue";
+
+  try {
+    // Usamos fetch para avisar al servidor que cierre el acta
+    const respuesta = await fetch(URL_WEB_APP, {
+      method: 'POST',
+      body: JSON.stringify({
+        accion: 'procesarAudioIndividual', // Reutilizamos la lógica de procesamiento
+        fileId: null,                   // No hay archivo nuevo
+        idEvento: idEventoActivo,
+        segundos: segundosPendientesPausa,
+        esFinal: true                   // <--- ESTO ES LO QUE CIERRA EL ACTA
+      })
+    });
+
+    const resIA = await respuesta.json();
+
+    if (resIA.status === "success") {
+      estadoTexto.innerText = "✅ Transcripción Finalizada";
+      estadoTexto.style.color = "blue";
+     
+      // Refrescamos la agenda para ver el cambio de estado
+      if (typeof cargarDatos === 'function') await cargarDatos();
+     
+      alert("¡Listo! El acta ha sido finalizada con éxito.");
+    } else {
+      alert("Error al finalizar: " + resIA.message);
+    }
+
+  } catch (error) {
+    console.error("Error al cerrar acta:", error);
+    estadoTexto.innerText = "❌ Error al finalizar";
+    alert("No se pudo conectar con el servidor para cerrar el acta.");
+  }
+}
+
 
 async function descargarPDFAsistencia(idEvento, tituloEvento) {
   // Feedback visual (capturamos el botón desde el evento)
@@ -1319,6 +1358,7 @@ async function descargarPDFAsistencia(idEvento, tituloEvento) {
     </script>
   </body>
 </html>
+
 
 
 
