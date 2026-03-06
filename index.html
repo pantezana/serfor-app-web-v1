@@ -128,6 +128,8 @@
       let listaProyectosGlobal = [];
       const TIEMPO_FRAGMENTO = 10 * 60 * 1000; // 10 minutos convertidos a milisegundos
       let segundosPendientesPausa = null; // Para saber si el stop actual es una pausa
+      // 1. PEGA ESTA URL AL PRINCIPIO DE TU <SCRIPT>
+      const URL_WEB_APP = "https://script.google.com/macros/s/AKfycbxTnY4nO1L0SL-Vh61QRGatuOOO9L7y5v16OL6I5KydGeIA241dUchEolc0JeVBUCmLxg/exec";
 
       const URL_BACKEND = "TU_URL_DE_DESPLIEGUE_AQUÍ"; // La obtendrás al publicar
 
@@ -151,8 +153,7 @@ async function llamarBackend(accion, datos = {}) {
 }
 
     
-      // 1. PEGA ESTA URL AL PRINCIPIO DE TU <SCRIPT>
-const URL_WEB_APP = "https://script.google.com/macros/s/AKfycbxTnY4nO1L0SL-Vh61QRGatuOOO9L7y5v16OL6I5KydGeIA241dUchEolc0JeVBUCmLxg/exec";
+
 
 async function cargarDatos() {
   const btn = document.querySelector('.btn-refresh');
@@ -293,21 +294,29 @@ async function cargarDatos() {
       }
 
       function verQR(id, titulo) {
-        const urlAsistencia = obtenerUrlAsistencia(id);
-        const qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=" + encodeURIComponent(urlAsistencia);
-        
-        const win = window.open("", "QR", "width=400,height=500");
-        win.document.write(`
-          <div style="text-align:center; font-family:sans-serif; padding:20px;">
-            <h3>QR de Asistencia</h3>
-            <p><strong>Evento:</strong> ${titulo}</p>
-            <img src="${qrUrl}" style="border:10px solid white; box-shadow:0 0 10px rgba(0,0,0,0.2);">
-            <p style="font-size:12px; color:gray;">Escanee para registrarse</p>
-            <button onclick="window.print()" style="padding:10px; cursor:pointer;">Imprimir QR</button>
-            <button onclick="window.close()" style="padding:10px; cursor:pointer;">Cerrar</button>
-          </div>
-        `);
-      }
+  // 1. Generamos la URL de asistencia usando nuestra constante
+  const urlAsistencia = URL_WEB_APP + "?id=" + id;
+ 
+  // 2. Generamos el QR con el servicio externo
+  const qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=" + encodeURIComponent(urlAsistencia);
+ 
+  // 3. Abrimos la ventana emergente
+  const win = window.open("", "QR", "width=400,height=500");
+ 
+  win.document.write(`
+    <div style="text-align:center; font-family:sans-serif; padding:20px;">
+      <h3>QR de Asistencia</h3>
+      <p><strong>Evento:</strong> ${titulo}</p>
+      <img src="${qrUrl}" style="border:10px solid white; box-shadow:0 0 10px rgba(0,0,0,0.2); width:250px;">
+      <p style="font-size:12px; color:gray;">Escanee para registrarse</p>
+      <div style="margin-top:15px;">
+        <button onclick="window.print()" style="padding:10px; cursor:pointer; background:#4CAF50; color:white; border:none; border-radius:4px;">Imprimir QR</button>
+        <button onclick="window.close()" style="padding:10px; cursor:pointer; background:#f44336; color:white; border:none; border-radius:4px;">Cerrar</button>
+      </div>
+    </div>
+  `);
+  win.document.close(); // Buena práctica cerrar el stream del documento
+}
 
       async function actualizarEstado(idEvento) {
   const selector = document.getElementById('estado-' + idEvento);
@@ -1229,9 +1238,15 @@ async function descargarPDFAsistencia(idEvento, tituloEvento) {
   }).obtenerDatosAsistenciaPDF(idEvento);
 }
 
+  function obtenerUrlAsistencia(id) {
+  // En lugar de usar la etiqueta de Google, usamos la URL que ya conocemos
+  return URL_WEB_APP + "?id=" + id;
+}
+
     </script>
   </body>
 </html>
+
 
 
 
