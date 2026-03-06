@@ -162,15 +162,12 @@ async function cargarDatos() {
   }
   document.getElementById('calendar-grid').innerHTML = '<p class="msg">Conectando con SERFOR...</p>';
 
-  try {
-    // 1. Usamos URLSearchParams para saltar el CORS
-    const urlConParametro = URL_WEB_APP + "?accion=obtenerEventos";
+  // CONSTRUIMOS LA URL CON EL PARÁMETRO
+  const urlFinal = URL_WEB_APP + "?accion=obtenerEventos";
 
-    // 2. Hacemos la petición
-    const respuesta = await fetch(urlConParametro, {
-      method: 'POST' // Google prefiere POST para estas llamadas
-    });
-    
+  try {
+    // IMPORTANTE: Al ser GET no hay errores de CORS en Apps Script
+    const respuesta = await fetch(urlFinal);
     const eventos = await respuesta.json();
 
     if (btn) {
@@ -178,13 +175,13 @@ async function cargarDatos() {
       btn.innerHTML = '🔄 Sincronizar';
     }
 
-    // Dibujamos los eventos
+    // Dibujamos los cuadritos de los eventos
     procesarEventos(eventos);
 
   } catch (error) {
-    console.error("Error CORS o Conexión:", error);
+    console.error("Error de conexión:", error);
     document.getElementById('calendar-grid').innerHTML = 
-      '<p class="msg" style="color:red;">Error de acceso. Verifique que el Script esté publicado para "Cualquiera".</p>';
+      '<p class="msg" style="color:red;">Error al cargar datos. Refresque la página.</p>';
   }
 }
       
@@ -1158,6 +1155,7 @@ async function descargarPDFAsistencia(idEvento, tituloEvento) {
     </script>
   </body>
 </html>
+
 
 
 
