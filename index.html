@@ -8,18 +8,37 @@
   </head>
   <body>
     <div class="main-container">
-      <div class="header-sticky">
-        <div class="top-bar">
-          <h2>📅 Agenda Semanal</h2>                    
-          <div class="button-group">
-            <button class="btn-refresh" onclick="cargarDatos()">🔄 Sincronizar</button>
-            <button class="btn-emergencia" onclick="abrirModalCrear()">➕ Crear Evento</button>
-          </div>
-        </div>
-        <div class="search-box">
-          <input type="text" id="buscador" placeholder="Buscar evento..." onkeyup="filtrarEventos()">
-        </div>
+   
+<div class="header-sticky">
+  <div id="login-section" style="padding: 20px; text-align: center; background: #ffffff; border-bottom: 1px solid #ddd; margin-bottom: 10px;">
+    <h3 style="margin-bottom: 15px; color: #2c3e50; font-family: sans-serif;">Identificación de Usuario</h3>
+    <div style="display: flex; justify-content: center;">
+      <div id="g_id_onload"
+           data-client_id="428208899473-h4k6qsltotpk08a7h8oarm46jg3bk88t.apps.googleusercontent.com"
+           data-callback="handleCredentialResponse"
+           data-auto_prompt="false">
       </div>
+      <div class="g_id_signin" data-type="standard" data-shape="rectangular" data-theme="outline" data-text="signin_with" data-size="large" data-logo_alignment="left"></div>
+    </div>
+    <p style="font-size: 12px; color: #7f8c8d; margin-top: 10px;">Inicie sesión con su cuenta institucional para acceder a su agenda personal.</p>
+  </div>
+
+  <div id="app-content" style="display: none;">
+    <div class="top-bar">
+      <h2>📅 Agenda Semanal</h2>                    
+      <div class="button-group">
+        <button class="btn-refresh" onclick="cargarDatos()">🔄 Sincronizar</button>
+        <button class="btn-emergencia" onclick="abrirModalCrear()">➕ Crear Evento</button>
+      </div>
+    </div>
+    
+    <div id="user-info" style="font-size: 11px; color: #27ae60; padding: 0 15px 5px; text-align: right; font-weight: bold;"></div>
+
+    <div class="search-box">
+      <input type="text" id="buscador" placeholder="Buscar evento..." onkeyup="filtrarEventos()">
+    </div>
+  </div>
+  </div>
       
       <div id="calendar-grid" class="calendar-grid">
         <p class="msg">Construyendo calendario...</p>
@@ -156,6 +175,12 @@ async function llamarBackend(accion, datos = {}) {
 
 
 async function cargarDatos() {
+  // Validación de seguridad
+    if (!URL_WEB_APP) {
+        console.warn("Intento de carga sin URL de Backend definida.");
+        return;
+    }
+  
   const btn = document.querySelector('.btn-refresh');
   if (btn) {
     btn.disabled = true;
@@ -1355,9 +1380,57 @@ async function descargarPDFAsistencia(idEvento, tituloEvento) {
   return URL_WEB_APP + "?id=" + id;
 }
 
+// --- VARIABLES DE CONFIGURACIÓN GLOBAL ---
+let URL_WEB_APP = ""; // Se llenará dinámicamente tras el login
+const URL_PORTERO = "https://script.google.com/macros/s/AKfycbwo7DQZ8RZL1Vs6YJyjKVAGlG7d4cL82hcGnvjZFu-_lbRUB47bCd3iazAGPwZKTkd7vQ/exec"; // <--- PEGA AQUÍ LA URL DEL PORTERO
+
+/**
+ * Función que recibe la respuesta de Google One Tap / Button
+ */
+async function handleCredentialResponse(response) {
+    try {
+        // 1. Decodificar el email del JWT que envía Google
+        const base64Url = response.credential.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const payload = JSON.parse(window.atob(base64));
+        const emailUsuario = payload.email;
+
+        console.log("Intentando acceso para:", emailUsuario);
+
+        // 2. Consultar al Portero si el usuario existe y qué URL le corresponde
+        const res = await fetch(`${URL_PORTERO}?email=${emailUsuario}`);
+        const config = await res.json();
+
+        if (config.success) {
+            // ASIGNACIÓN DINÁMICA DEL BACKEND
+            URL_WEB_APP = config.urlBackend; 
+            
+            // 3. Interfaz: Ocultar login y mostrar aplicación
+            document.getElementById('login-section').style.display = 'none';
+            document.getElementById('app-content').style.display = 'block';
+            
+            // 4. Mostrar feedback del usuario en la barra superior
+            if (document.getElementById('user-info')) {
+                document.getElementById('user-info').innerText = "👤 " + emailUsuario;
+            }
+
+            // 5. Cargar los datos iniciales desde el nuevo Backend asignado
+            alert("Acceso concedido. Cargando su agenda...");
+            cargarDatos(); 
+
+        } else {
+            alert("Acceso denegado: " + config.message);
+        }
+    } catch (e) {
+        console.error("Error en flujo de login:", e);
+        alert("Error crítico al conectar con el servidor de acceso.");
+    }
+}
+
     </script>
   </body>
 </html>
+
 
 
 
